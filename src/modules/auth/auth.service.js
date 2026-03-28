@@ -1,3 +1,7 @@
+import {
+  sendPasswordResetEmail,
+  sendVerificationEmail,
+} from "../../common/config/email.js";
 import ApiError from "../../common/utils/api-error.js";
 import {
   generateAccessToken,
@@ -22,7 +26,12 @@ const register = async ({ name, email, password, role }) => {
     verificationToken: hashedToken,
   });
 
-  // TODO: send an email to user with token: rawToken
+  try {
+    const info = await sendVerificationEmail(email, rawToken);
+    console.log("Message sent: %s", info.messageId);
+  } catch (error) {
+    console.error("Error: while email sending", error);
+  }
 
   const userObj = user.toObject();
   delete userObj.password;
@@ -32,16 +41,21 @@ const register = async ({ name, email, password, role }) => {
 };
 
 const login = async ({ email, password }) => {
-  const user = await User.findOne({ email, password }).select("+password");
+  console.log("Attempting login with email:", email, password);
+
+  const user = await User.findOne({ email }).select("+password");
+  console.log("User found:", user);
   if (!user) throw ApiError.unauthorized("Invalid email or password");
 
-  // some how checked correct password
+  const isMatch = await user.comparePassword(password);
+  if (!isMatch) throw ApiError.unauthorized("Invalid Credencials");
+
   if (!user.isVerified) {
     throw ApiError.forbidden("Please verify your email before login");
   }
 
   const accessToken = generateAccessToken({ id: user?._id, role: user?.role });
-  const refreshToken = generateAccessToken({ id: user?._id });
+  const refreshToken = generateRefreshToken({ id: user?._id });
 
   user.refreshToken = hashedToken(refreshToken);
   await user.save({ validateBeforeSave: false });
@@ -62,8 +76,9 @@ const refresh = async (token) => {
   const decoded = verifyRefreshToken(token);
 
   const user = await User.findById(decoded.id).select("+refreshToken");
+  if (!user) throw ApiError.unauthorized("User not found");
 
-  if (user.refreshToken !== token) {
+  if (user.refreshToken !== hashedToken(token)) {
     throw ApiError.unauthorized("Invalid refresh token");
   }
 
@@ -73,7 +88,7 @@ const refresh = async (token) => {
   user.refreshToken = hashedToken(refreshToken);
   await user.save({ validateBeforeSave: false });
 
-  return { accessToken, refreshToken };
+  return { user, accessToken, refreshToken };
 };
 
 const forgotPassword = async (email) => {
@@ -86,7 +101,82 @@ const forgotPassword = async (email) => {
   user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
   await user.save();
 
-  // send resettoken to email for reset password
+  await sendPasswordResetEmail(email, rawToken);
 };
 
-export { register, login, logout, refresh, forgotPassword };
+const resetPassword = async (token, password) => {
+  const hToken = hashedToken(token);
+  const user = await User.findOne({
+    resetPasswordToken: hToken,
+    resetPasswordExpires: { $gt: Date.now() },
+  }).select("+resetPasswordToken +resetPasswordExpires");
+  if (!user) throw ApiError.badRequest("Invalid or expired reset token");
+
+  user.password = password;
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpires = undefined;
+  await user.save();
+
+  return user;
+};
+
+const verifyEmail = async (token) => {
+  const hToken = hashedToken(token);
+
+  const user = await User.findOne({ verificationToken: hToken }).select(
+    "+verificationToken",
+  );
+  if (!user) throw ApiError.badRequest("Invalid or expired verification token");
+
+  user.isVerified = true;
+  user.verificationToken = undefined;
+  await user.save({ validateBeforeSave: false });
+  return user;
+};
+
+const getMe = async (userId) => {
+  const user = await User.findById(userId);
+  if (!user) throw ApiError.notfound("User not found");
+  return user;
+};
+
+const resendVerificationEmail = async (email) => {
+  const user = await User.findOne({ email });
+
+  if (!user) throw ApiError.notFound("Account not found with this email");
+  if (user.isVerified) throw ApiError.badRequest("Email is already verified");
+
+  const { rawToken, hashedToken } = generateResetToken();
+
+  user.verificationToken = hashedToken;
+  await user.save({ validateBeforeSave: false });
+  await sendVerificationEmail(email, rawToken);
+
+  return user;
+};
+
+const changePassword = async (userId, currentPassword, newPassword) => {
+  const user = await User.findById(userId).select("+password");
+  if (!user) throw ApiError.notFound("User not found");
+
+  const isMatch = await user.comparePassword(currentPassword);
+  if (!isMatch) throw ApiError.badRequest("Current password is incorrect");
+
+  user.password = newPassword;
+  await user.save();
+
+  return user;
+};
+
+export {
+  register,
+  login,
+  logout,
+  refresh,
+  forgotPassword,
+  verifyEmail,
+  resetPassword,
+  getMe,
+  resendVerificationEmail,
+  changePassword,
+};
