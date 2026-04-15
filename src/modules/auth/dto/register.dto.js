@@ -12,7 +12,7 @@ class RegisterDto extends BaseDto {
       "string.empty": "Password is required",
     }),
 
-    role: Joi.string().valid("customer", "seller").default("customer"),
+    role: Joi.string().valid("customer", "provider", "admin").default("customer"),
   });
 }
 
