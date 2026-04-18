@@ -2,6 +2,7 @@ import {
   sendPasswordResetEmail,
   sendVerificationEmail,
 } from "../../common/config/email.js";
+import imagekit from "../../common/config/imagekit.js";
 import ApiError from "../../common/utils/api-error.js";
 import {
   generateAccessToken,
@@ -11,6 +12,7 @@ import {
   verifyRefreshToken,
 } from "../../common/utils/jwt.utils.js";
 import User from "./auth.model.js";
+import fs from "fs";
 
 const register = async ({ name, email, password, role }) => {
   const exists = await User.findOne({ email });
@@ -168,6 +170,40 @@ const changePassword = async (userId, currentPassword, newPassword) => {
   return user;
 };
 
+const uploadAvatar = async (userId, file) => {
+  try {
+    const fileStream = fs.createReadStream(file.path);
+    const uploadResponse = await imagekit.files.upload({
+      file: fileStream,
+      fileName: file.filename,
+      folder: "/user-avatars",
+    });
+
+    await User.findByIdAndUpdate(
+      userId,
+      { avatar: uploadResponse.url },
+      { new: true },
+    );
+
+    fs.unlinkSync(file.path);
+
+    return {
+      url: uploadResponse.url,
+      fileId: uploadResponse.fileId,
+    };
+  } catch (error) {
+    try {
+      if (file.path && fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+    } catch (error) {
+      console.error("Error deleting temp file:", error);
+    }
+
+    throw error;
+  }
+};
+
 export {
   register,
   login,
@@ -179,4 +215,5 @@ export {
   getMe,
   resendVerificationEmail,
   changePassword,
+  uploadAvatar,
 };
