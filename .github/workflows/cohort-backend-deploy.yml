@@ -1,0 +1,29 @@
+name: Deploy Nodejs code on ExCloud
+
+on:
+  push:
+    branches:
+      - test
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy on ExCloud
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 210.79.129.117
+          username: ubuntu
+          passphrase: ${{ secrets.PASSPHRASE }}
+          key: ${{ secrets.PRIVATE_KEY }}
+          script: |
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            cd /home/ubuntu/01_cohort_backend
+            git pull
+            npm install
+            pm2 restart 0
