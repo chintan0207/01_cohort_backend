@@ -16,7 +16,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.get("/", (req, res) => {
   res.send(
-    "Welcome to the Cohort 2026 Backend API with github actions deployment!",
+    "Welcome to the Cohort 2026 Backend API with github actions and docker deployment",
   );
 });
 app.use("/api/auth", authRoutes);
