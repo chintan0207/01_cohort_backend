@@ -1,20 +1,27 @@
-version: "3.9"
-
 services:
-  mongodb:
-    image: mongo:8.0
-    container_name: mongodb
-    restart: always
+  nodejs-server:
+    image: strangercoding/cohort-backend
+    deploy:
+      replicas: 5
+    networks:
+      - backend-internal
 
+  caddy:
+    image: caddy:latest
     ports:
-      - "27017:27017"
-
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password
-
+      - '80:80'
+      - '443:443'
     volumes:
-      - mongo_data:/data/db
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - backend-internal
+
+networks:
+  backend-internal:
+    driver: bridge
 
 volumes:
-  mongo_data:
+  caddy_data:
+  caddy_config:

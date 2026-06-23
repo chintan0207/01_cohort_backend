@@ -36,15 +36,20 @@ jobs:
           username: ubuntu
           passphrase: ${{ secrets.PASSPHRASE }}
           key: ${{ secrets.PRIVATE_KEY }}
-          script: |
-            # Kill the existing docker container
-            sudo docker rm -f cohort-backend || true
+            script: |
+             #CD /home/ubuntu/01_cohort_backend
+             cd /home/ubuntu/01_cohort_backend
 
-            # Again pull the fresh image from hub
-            sudo docker pull strangercoding/cohort-backend
+             # git pull
+             git pull origin test
 
-            # Run docker run -d -p 5000:5000 strangercoding/cohort-backend
-            sudo docker run -d --name cohort-backend --restart unless-stopped --env-file /home/ubuntu/01_cohort_backend/.env -p 5000:5000 strangercoding/cohort-backend
+             # make sure to pull a fresh copy of strangercoding/cohort-backend
+             sudo docker-compose pull
 
-            # Clean up old/unused images
-            sudo docker image prune -f
+             # docker compose up -d
+             sudo docker compose up -d
+
+             # Clean up old/unused images
+             sudo docker image prune -f
+
+      
