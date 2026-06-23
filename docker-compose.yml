@@ -1,16 +1,17 @@
 services:
   nodejs-server:
     image: strangercoding/cohort-backend
-    deploy:
-      replicas: 5
+    env_file:
+      - .env
+    restart: unless-stopped
     networks:
       - backend-internal
 
   caddy:
     image: caddy:latest
     ports:
-      - '80:80'
-      - '443:443'
+      - "80:80"
+      - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
