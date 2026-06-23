@@ -36,7 +36,7 @@ jobs:
           username: ubuntu
           passphrase: ${{ secrets.PASSPHRASE }}
           key: ${{ secrets.PRIVATE_KEY }}
-            script: |
+          script: |
              #CD /home/ubuntu/01_cohort_backend
              cd /home/ubuntu/01_cohort_backend
 
